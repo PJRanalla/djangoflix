@@ -1,0 +1,131 @@
+<script>
+    // ... other scripts ...
+
+    function addItemToList() {
+        const modal = document.getElementById('movieModal');
+        const movieID = modal.getAttribute('data-movie-id');
+
+        $.ajax({
+            url: "{% url 'add-to-list' %}",
+            type: "POST",
+            data: {
+                movie_id: movieID,
+                csrfmiddlewaretoken: getCsrfToken()
+            },
+            success: function(data) {
+                if (data.status === 'success') {
+                    $('#addToListButton').text('Remove from List');
+                    $('#addToListButton').off('click').click(removeItemFromList);
+                    setTimeout(() => location.reload(), 500); // Refresh after 500ms
+                }
+                console.log(data.message); // Debug: log the response message
+            },
+            error: function(xhr, errmsg, err) {
+                console.error("Error adding movie to list: " + errmsg);
+            }
+        });
+    }
+
+    function removeItemFromList() {
+        const modal = document.getElementById('movieModal');
+        const movieID = modal.getAttribute('data-movie-id');
+
+        $.ajax({
+            url: "{% url 'remove-from-list' %}",
+            type: "POST",
+            data: {
+                movie_id: movieID,
+                csrfmiddlewaretoken: getCsrfToken()
+            },
+            success: function(data) {
+                if (data.status === 'success') {
+                    $('#addToListButton').text('Add to List');
+                    $('#addToListButton').off('click').click(addItemToList);
+                    setTimeout(() => location.reload(), 500); // Refresh after 500ms
+                }
+                console.log(data.message); // Debug: log the response message
+            },
+            error: function(xhr, errmsg, err) {
+                console.error("Error removing item from list: " + errmsg);
+            }
+        });
+    }
+
+    function addItemToCustomList(customListId, movieId) {
+        $.ajax({
+            url: "{% url 'add_to_custom_list' %}",
+            type: "POST",
+            data: {
+                list_id: customListId,
+                movie_id: movieId,
+                csrfmiddlewaretoken: getCsrfToken()
+            },
+            success: function(data) {
+                if (data.status === 'success') {
+                    // Update custom list button
+                    $(`#customListButton-${customListId}-${movieId}`).text('Remove from Custom List');
+                    $(`#customListButton-${customListId}-${movieId}`).off('click').click(() => removeItemFromCustomList(customListId, movieId));
+                    setTimeout(() => location.reload(), 500); // Refresh after 500ms
+                }
+                console.log(data.message); // Debug: log the response message
+            },
+            error: function(xhr, errmsg, err) {
+                console.error("Error adding movie to custom list: " + errmsg);
+            }
+        });
+    }
+
+    function removeItemFromCustomList(customListId, movieId) {
+        $.ajax({
+            url: "{% url 'remove_from_custom_list' %}",
+            type: "POST",
+            data: {
+                list_id: customListId,
+                movie_id: movieId,
+                csrfmiddlewaretoken: getCsrfToken()
+            },
+            success: function(data) {
+                if (data.status === 'success') {
+                    // Update custom list button
+                    $(`#customListButton-${customListId}-${movieId}`).text('Add to Custom List');
+                    $(`#customListButton-${customListId}-${movieId}`).off('click').click(() => addItemToCustomList(customListId, movieId));
+                    setTimeout(() => location.reload(), 500); // Refresh after 500ms
+                }
+                console.log(data.message); // Debug: log the response message
+            },
+            error: function(xhr, errmsg, err) {
+                console.error("Error removing item from custom list: " + errmsg);
+            }
+        });
+    }
+
+    // Initial setup to ensure buttons are correctly set on page load
+    $(document).ready(function() {
+        // Fetch the current list of movies in the user's list
+        $.ajax({
+            url: "{% url 'my-list-json' %}",
+            type: "GET",
+            success: function(data) {
+                if (data.movies) {
+                    data.movies.forEach(movie => {
+                        const movieId = movie.uu_id;
+                        const addButton = $(`[data-movie-id='${movieId}']`).find('#addToListButton');
+                        if (addButton.length) {
+                            addButton.text('Remove from List');
+                            addButton.off('click').click(removeItemFromList);
+                        }
+                    });
+                } else {
+                    console.error("No movies found in the response");
+                }
+            },
+            error: function(xhr, errmsg, err) {
+                console.error("Error fetching initial movie list: " + errmsg);
+            }
+        });
+    });
+</script>
+
+
+
+

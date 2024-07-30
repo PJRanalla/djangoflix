@@ -1,0 +1,288 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix Clone</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="{% static 'assets/style.css' %}" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+</head>
+
+<body class="text-white" style="background-color: #141414;">
+    <header class="p-5 flex justify-between items-center">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/7/7a/Logonetflix.png" height="30" alt="Netflix Logo" width="110">
+
+
+        <nav class="flex space-x-5">
+            <span><a href="/">Home</a></span>
+
+            <div class="dropdown">
+                <span id="dropdownMenuButton" class="cursor-pointer">Genres ▼</span>
+
+                <div id="dropdownMenu" class="dropdown-content hidden">
+                    <ul><a href="/genre/action/">Action</a></ul>
+                    <ul><a href="/genre/comedy/">Comedy</a></ul>
+                    <ul><a href="/genre/drama/">Drama</a></ul>
+                    <ul><a href="/genre/horror/">Horror</a></ul>
+                    <ul><a href="/genre/romance/">Romance</a></ul>
+                    <ul><a href="/genre/sports/">Sports</a></ul>
+                    <ul><a href="/genre/realityseries/">Reality Series</a></ul>
+                    <ul><a href="/genre/sciencefiction/">Science Fiction</a></ul>
+                    <ul><a href="/genre/fantasy/">Fantasy</a></ul>
+                </div>
+            </div>
+
+            <span><a href="/my-list">My List</a></span>
+        </nav>
+
+
+        <div class="flex space-x-5 items-center">
+            <form action="search" method="POST">
+                {% csrf_token %}
+                <input type="search" name="search_term" placeholder="Search" class="bg-gray-700 p-2 rounded">
+                <button class="bg-red-600 text-white p-2 rounded hover:bg-red-500">Search</button>
+            </form>
+            <div class="relative">
+                <a href="#" class="block p-2">Welcome, {{user.username}}</a>
+                <a href="/logout" class="block p-2">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <hr>
+
+    <section class="py-10 px-5">
+
+        <div align="center">
+            <h2 class="text-xl mb-5">
+                {{movie_genre | title}} Films
+            </h2>
+        </div>
+        <div class="flex space-x-5 overflow-x-auto">
+
+            {% for movie in movies %}
+            <div class="w-40 h-64 flex-shrink-0 film-card"
+                onclick="showMovieModal(this)"
+                data-title="{{ movie.title }}"
+                data-description="{{ movie.description }}"
+                data-release-date="{{ movie.release_date|date:'Y' }}"
+                data-genre="{{ movie.get_genre_display }}"
+                data-length="{{ movie.length }}"
+                data-image-card-url="{{ movie.image_card.url }}"
+                data-image-cover-url="{{ movie.image_cover.url }}"
+                data-video-id="{{ movie.youtube_video_id }}"
+                data-movie-id="{{ movie.uu_id }}"
+                style="background-image: url('{{movie.image_card.url}}'); background-size: cover; background-position: center;">
+            </div>
+            {% endfor %}
+    </section>
+
+
+
+     <!-- Movie Modal -->
+     <div class="modal" id="movieModal">
+        <div class="modal-content">
+            <div class="flex justify-between">
+                <h2 class="text-xl mb-5" id="movieTitle">Movie Title</h2>
+                <button onclick="hideMovieModal()">X</button>
+            </div>
+            <img width="1000" height="100" src="" alt="Movie Image" class="mb-5" id="movieImage">
+            <div id="player" style="display:none;"></div>
+            <div class="flex justify-between mb-5">
+                <span id="movieYear">Year: </span>
+                <span id="movieGenre">Genre: </span>
+                <span id="movieLength">Length: min</span>
+            </div>
+            <p class="mb-5" id="movieDescription">Detailed information about the movie.</p>
+            <div class="flex space-x-4 mb-5">
+                <button class="bg-red-600 text-white p-2 px-5 rounded hover:bg-red-500" onclick="playYouTubeVideo()">Play</button>
+                <button id="addToListButton" class="border border-white text-white p-2 px-5 rounded hover:bg-gray-700">
+                    Add to My List
+                </button>
+                <div class="relative">
+                    <button id="addToCustomListButton" class="border border-white text-white p-2 px-5 rounded hover:bg-gray-700" onclick="toggleCustomListDropdown()">
+                        Add to Custom List
+                    </button>
+                    <div id="customListDropdown" class="absolute hidden border border-white p-2 px-5 rounded mt-2">
+                        {% for custom_list in custom_lists %}
+                            <div  class="custom-list-item" onclick="handleCustomListAction('{{ custom_list.id|escapejs }}', 'add')">{{ custom_list.name }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let youtubeApiKey = "{{ youtube_api_key }}";
+        let currentMovieId = '';
+
+        function showMovieModal(element, customListId = null) {
+            currentMovieId = element.getAttribute('data-movie-id');
+            const movieTitle = element.getAttribute('data-title');
+            const description = element.getAttribute('data-description');
+            const releaseDate = element.getAttribute('data-release-date');
+            const genre = element.getAttribute('data-genre');
+            const length = element.getAttribute('data-length');
+            const imageCardUrl = element.getAttribute('data-image-card-url');
+            const imageCoverUrl = element.getAttribute('data-image-cover-url');
+            const videoId = element.getAttribute('data-video-id');
+
+            const modal = document.getElementById('movieModal');
+            modal.setAttribute('data-movie-id', currentMovieId);
+            modal.setAttribute('data-custom-list-id', customListId);
+
+            if (customListId) {
+                handleCustomListAction(customListId, 'check');
+            } else {
+                handleMyListAction('check');
+            }
+
+            modal.querySelector('#movieTitle').textContent = movieTitle;
+            modal.querySelector('#movieImage').src = imageCoverUrl;
+            modal.querySelector('#movieYear').textContent = "Year: " + releaseDate;
+            modal.querySelector('#movieGenre').textContent = "Genre: " + genre;
+            modal.querySelector('#movieLength').textContent = "Length: " + length + " min";
+            modal.querySelector('#movieDescription').textContent = description;
+
+            window.currentVideoId = videoId;
+
+            document.getElementById('movieImage').style.display = 'block';
+            document.getElementById('player').style.display = 'none';
+
+            modal.style.display = 'block';
+            setTimeout(() => {
+                modal.classList.add('modal-show');
+            }, 50);
+        }
+
+        function hideMovieModal() {
+            const modal = document.getElementById('movieModal');
+            modal.classList.remove('modal-show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                const player = document.getElementById('player');
+                player.innerHTML = '';
+            }, 300);
+        }
+
+        function playYouTubeVideo() {
+            const videoId = window.currentVideoId;
+            const player = document.getElementById('player');
+            player.innerHTML = `<iframe width="100%" height="500" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+            document.getElementById('movieImage').style.display = 'none';
+            player.style.display = 'block';
+        }
+
+        window.onclick = function(event) {
+            const movieModal = document.getElementById('movieModal');
+            if (event.target === movieModal) {
+                hideMovieModal();
+            }
+        }
+
+        function getCsrfToken() {
+            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
+
+        function handleMyListAction(action = 'check') {
+            const button = document.getElementById('addToListButton');
+            if (action === 'add') {
+                $.post("{% url 'add-to-list' %}", { movie_id: currentMovieId, csrfmiddlewaretoken: getCsrfToken() })
+                    .done(function(data) {
+                        if (data.status === 'success') {
+                            button.textContent = 'Remove from My List';
+                            button.onclick = () => handleMyListAction('remove');
+                            setTimeout(() => location.reload(), 500);
+                        }
+                    });
+            } else if (action === 'remove') {
+                $.post("{% url 'remove-from-list' %}", { movie_id: currentMovieId, csrfmiddlewaretoken: getCsrfToken() })
+                    .done(function(data) {
+                        if (data.status === 'success') {
+                            button.textContent = 'Add to My List';
+                            button.onclick = () => handleMyListAction('add');
+                            setTimeout(() => location.reload(), 500);
+                        }
+                    });
+            } else if (action === 'check') {
+                $.get("{% url 'my-list-json' %}").done(function(data) {
+                    const isMovieInList = data.movies.some(movie => movie.uu_id === currentMovieId);
+                    if (isMovieInList) {
+                        button.textContent = 'Remove from My List';
+                        button.onclick = () => handleMyListAction('remove');
+                    } else {
+                        button.textContent = 'Add to My List';
+                        button.onclick = () => handleMyListAction('add');
+                    }
+                });
+            }
+        }
+
+        function handleCustomListAction(listId, action) {
+            const button = document.getElementById('addToCustomListButton');
+            if (action === 'add') {
+                $.post("{% url 'add_to_custom_list' %}", { movie_id: currentMovieId, list_id: listId, csrfmiddlewaretoken: getCsrfToken() })
+                    .done(function(data) {
+                        if (data.status === 'success') {
+                            button.textContent = 'Remove from Custom List';
+                            button.onclick = () => handleCustomListAction(listId, 'remove');
+                            setTimeout(() => location.reload(), 500);
+                        }
+                    });
+            } else if (action === 'remove') {
+                $.post("{% url 'remove_from_custom_list' %}", { movie_id: currentMovieId, list_id: listId, csrfmiddlewaretoken: getCsrfToken() })
+                    .done(function(data) {
+                        if (data.status === 'success') {
+                            button.textContent = 'Add to Custom List';
+                            button.onclick = () => handleCustomListAction(listId, 'add');
+                            setTimeout(() => location.reload(), 500);
+                        }
+                    });
+            } else if (action === 'check') {
+                $.get(`/custom-list-json/${listId}/`).done(function(data) {
+                    const isMovieInList = data.movies.some(movie => movie.uu_id === currentMovieId);
+                    if (isMovieInList) {
+                        button.textContent = 'Remove from Custom List';
+                        button.onclick = () => handleCustomListAction(listId, 'remove');
+                    } else {
+                        button.textContent = 'Add to Custom List';
+                        button.onclick = () => handleCustomListAction(listId, 'add');
+                    }
+                });
+            }
+        }
+
+        function toggleCustomListDropdown() {
+            const dropdown = document.getElementById('customListDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+
+        // Initial setup to ensure buttons are correctly set on page load
+        $(document).ready(function() {
+            $.get("{% url 'my-list-json' %}").done(function(data) {
+                console.log("Initial movies data:", data);
+                if (data.movies) {
+                    data.movies.forEach(movie => {
+                        const movieId = movie.uu_id;
+                        const addButton = $(`[data-movie-id='${movieId}']`).find('#addToListButton');
+                        if (addButton.length) {
+                            addButton.text('Remove from My List');
+                            addButton.off('click').click(() => handleMyListAction('remove'));
+                        }
+                    });
+                } else {
+                    console.error("No movies found in the response");
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

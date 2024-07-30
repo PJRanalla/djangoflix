@@ -1,0 +1,476 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Netflix Clone - My List</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="{% static 'assets/style.css' %}" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+
+<body class="text-white" style="background-color: #141414;">
+    <header class="p-5 flex justify-between items-center">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/7/7a/Logonetflix.png" height="30" alt="Netflix Logo" width="110">
+        <nav class="flex space-x-5">
+            <span><a href="/">Home</a></span>
+            <div class="dropdown">
+                <span id="dropdownMenuButton" class="cursor-pointer">Genres ▼</span>
+                <div id="dropdownMenu" class="dropdown-content hidden">
+                    <ul><a href="/genre/action/">Action</a></ul>
+                    <ul><a href="/genre/comedy/">Comedy</a></ul>
+                    <ul><a href="/genre/drama/">Drama</a></ul>
+                    <ul><a href="/genre/horror/">Horror</a></ul>
+                    <ul><a href="/genre/romance/">Romance</a></ul>
+                    <ul><a href="/genre/sports/">Sports</a></ul>
+                    <ul><a href="/genre/reality-series/">Reality Series</a></ul>
+                    <ul><a href="/genre/science-fiction/">Science Fiction</a></ul>
+                    <ul><a href="/genre/fantasy/">Fantasy</a></ul>
+                </div>
+            </div>
+            <span><a href="/my-list">My List</a></span>
+        </nav>
+        <div class="flex space-x-5 items-center">
+            <form action="/search/" method="POST">
+                {% csrf_token %}
+                <input type="search" name="search_term" placeholder="Search" class="bg-gray-700 p-2 rounded">
+                <button class="bg-red-600 text-white p-2 rounded hover:bg-red-500">Search</button>
+            </form>
+            <div class="relative">
+                <a href="#" class="block p-2">Welcome, {{ user.username }}</a>
+                <a href="/logout" class="block p-2">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="py-10 px-5">
+        <h2 class="text-xl mb-5">My List</h2>
+        <div class="flex space-x-5 overflow-x-auto">
+            {% for movie in movies %}
+                <div class="w-40 h-64 flex-shrink-0 film-card"
+                    onclick="showMovieModal(this)"
+                    data-title="{{ movie.title }}"
+                    data-description="{{ movie.description }}"
+                    data-release-date="{{ movie.release_date|date:'Y' }}"
+                    data-genre="{{ movie.get_genre_display }}"
+                    data-length="{{ movie.length }}"
+                    data-image-card-url="{{ movie.image_card.url }}"
+                    data-image-cover-url="{{ movie.image_cover.url }}"
+                    data-video-id="{{ movie.youtube_video_id }}"
+                    data-movie-id="{{ movie.uu_id }}"
+                    style="background-image: url('{{ movie.image_card.url }}'); background-size: cover; background-position: center;">
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="py-10 px-5">
+        <button class="bg-red-600 text-white p-2 mb-10 rounded" onclick="showCreateListModal()">Create New List</button>
+        <div class="flex flex-col space-y-5">
+            {% for custom_list in custom_lists %}
+                <div>
+                    <h3 class="text-lg mb-2">{{ custom_list.name }}</h3>
+                    <div class="flex space-x-5 mb-10 overflow-x-auto">
+                        {% for movie in custom_list.movies.all %}
+                            <div class="w-40 h-64 flex-shrink-0 film-card"
+                            onclick="showMovieModal(this, '{{ custom_list.id|escapejs }}')"
+
+                                data-title="{{ movie.title }}"
+                                data-description="{{ movie.description }}"
+                                data-release-date="{{ movie.release_date|date:'Y' }}"
+                                data-genre="{{ movie.get_genre_display }}"
+                                data-length="{{ movie.length }}"
+                                data-image-card-url="{{ movie.image_card.url }}"
+                                data-image-cover-url="{{ movie.image_cover.url }}"
+                                data-video-id="{{ movie.youtube_video_id }}"
+                                data-movie-id="{{ movie.uu_id }}"
+                                data-custom-list-id="{{ custom_list.id }}"
+                                style="background-image: url('{{ movie.image_card.url }}'); background-size: cover; background-position: center;">
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <button class="bg-blue-600 text-white p-2 rounded"
+                            data-list-id="{{ custom_list.id }}"
+                            data-list-name="{{ custom_list.name|escapejs }}"
+                            onclick="showUpdateListModal(this)">Update</button>
+                    <button class="bg-red-600 text-white p-2 rounded"
+                            data-list-id="{{ custom_list.id }}"
+                            onclick="showDeleteListModal(this)">Delete</button>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Movie Modal -->
+    <div class="modal" id="movieModal">
+        <div class="modal-content">
+            <div class="flex justify-between">
+                <h2 class="text-xl mb-5" id="movieTitle">Movie Title</h2>
+                <button onclick="hideMovieModal()">X</button>
+            </div>
+            <img width="1000" height="100" src="" alt="Movie Image" class="mb-5" id="movieImage">
+            <div id="player" style="display:none;"></div>
+            <div class="flex justify-between mb-5">
+                <span id="movieYear">Year: </span>
+                <span id="movieGenre">Genre: </span>
+                <span id="movieLength">Length: min</span>
+            </div>
+            <p class="mb-5" id="movieDescription">Detailed information about the movie.</p>
+            <div class="flex space-x-4 mb-5">
+                <button class="bg-red-600 text-white p-2 px-5 rounded hover:bg-red-500" onclick="playYouTubeVideo()">Play</button>
+                <button id="addToListButton" class="border border-white text-white p-2 px-5 rounded hover:bg-gray-700">
+                    Add to List
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let youtubeApiKey = "{{ youtube_api_key }}";
+        let movieTitle = '';
+
+        function showMovieModal(element, customListId = null) {
+            movieTitle = element.getAttribute('data-title');
+            const description = element.getAttribute('data-description');
+            const releaseDate = element.getAttribute('data-release-date');
+            const genre = element.getAttribute('data-genre');
+            const length = element.getAttribute('data-length');
+            const imageCardUrl = element.getAttribute('data-image-card-url');
+            const imageCoverUrl = element.getAttribute('data-image-cover-url');
+            const videoId = element.getAttribute('data-video-id');
+            const movieId = element.getAttribute('data-movie-id');
+
+            const modal = document.getElementById('movieModal');
+            modal.setAttribute('data-movie-id', movieId);
+            modal.setAttribute('data-custom-list-id', customListId);
+
+            if (customListId) {
+                $.ajax({
+                    url: `/custom-list-json/${customListId}/`,
+                    type: "GET",
+                    success: function(data) {
+                        if (data.movies) {
+                            const isMovieInList = data.movies.some(movie => movie.uu_id === movieId);
+                            if (isMovieInList) {
+                                $('#addToListButton').text('Remove from List');
+                                $('#addToListButton').off('click').click(() => removeItemFromCustomList(customListId, movieId));
+                            } else {
+                                $('#addToListButton').text('Add to List');
+                                $('#addToListButton').off('click').click(() => addItemToCustomList(customListId, movieId));
+                            }
+                        } else {
+                            console.error("No movies found in the response");
+                        }
+                    },
+                    error: function(xhr, errmsg, err) {
+                        console.error("Error checking movie in list: " + errmsg);
+                    }
+                });
+            } else {
+                $.ajax({
+                    url: "{% url 'my-list-json' %}",
+                    type: "GET",
+                    success: function(data) {
+                        if (data.movies) {
+                            const isMovieInList = data.movies.some(movie => movie.uu_id === movieId);
+                            if (isMovieInList) {
+                                $('#addToListButton').text('Remove from List');
+                                $('#addToListButton').off('click').click(removeItemFromList);
+                            } else {
+                                $('#addToListButton').text('Add to List');
+                                $('#addToListButton').off('click').click(addItemToList);
+                            }
+                        } else {
+                            console.error("No movies found in the response");
+                        }
+                    },
+                    error: function(xhr, errmsg, err) {
+                        console.error("Error checking movie in list: " + errmsg);
+                    }
+                });
+            }
+
+            modal.querySelector('#movieTitle').textContent = movieTitle;
+            modal.querySelector('#movieImage').src = imageCoverUrl;
+            modal.querySelector('#movieYear').textContent = "Year: " + releaseDate;
+            modal.querySelector('#movieGenre').textContent = "Genre: " + genre;
+            modal.querySelector('#movieLength').textContent = "Length: " + length + " min";
+            modal.querySelector('#movieDescription').textContent = description;
+
+            window.currentVideoId = videoId;
+
+            document.getElementById('movieImage').style.display = 'block';
+            document.getElementById('player').style.display = 'none';
+
+            modal.style.display = 'block';
+            setTimeout(() => {
+                modal.classList.add('modal-show');
+            }, 50);
+        }
+
+        function hideMovieModal() {
+            const modal = document.getElementById('movieModal');
+            modal.classList.remove('modal-show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                // Clear the YouTube player to stop the video
+                const player = document.getElementById('player');
+                player.innerHTML = '';
+            }, 300);
+        }
+
+        function playYouTubeVideo() {
+            const videoId = window.currentVideoId;
+            const player = document.getElementById('player');
+            player.innerHTML = `<iframe width="100%" height="500" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+            document.getElementById('movieImage').style.display = 'none';
+            player.style.display = 'block';
+        }
+
+        window.onclick = function(event) {
+            const movieModal = document.getElementById('movieModal');
+            if (event.target === movieModal) {
+                hideMovieModal();
+            }
+        }
+
+        function getCsrfToken() {
+            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
+
+        function addItemToList() {
+            const modal = document.getElementById('movieModal');
+            const movieID = modal.getAttribute('data-movie-id');
+
+            $.ajax({
+                url: "{% url 'add-to-list' %}",
+                type: "POST",
+                data: {
+                    movie_id: movieID,
+                    csrfmiddlewaretoken: getCsrfToken()
+                },
+                success: function(data) {
+                    if (data.status === 'success') {
+                        $('#addToListButton').text('Remove from List');
+                        $('#addToListButton').off('click').click(removeItemFromList);
+                        setTimeout(() => location.reload(), 300);
+                    }
+                    console.log(data.message);
+                },
+                error: function(xhr, errmsg, err) {
+                    console.error("Error adding movie to list: " + errmsg);
+                }
+            });
+        }
+
+        function removeItemFromList() {
+            const modal = document.getElementById('movieModal');
+            const movieID = modal.getAttribute('data-movie-id');
+
+            $.ajax({
+                url: "{% url 'remove-from-list' %}",
+                type: "POST",
+                data: {
+                    movie_id: movieID,
+                    csrfmiddlewaretoken: getCsrfToken()
+                },
+                success: function(data) {
+                    if (data.status === 'success') {
+                        $('#addToListButton').text('Add to List');
+                        $('#addToListButton').off('click').click(addItemToList);
+                        setTimeout(() => location.reload(), 300);
+                    }
+                    console.log(data.message);
+                },
+                error: function(xhr, errmsg, err) {
+                    console.error("Error removing item from list: " + errmsg);
+                }
+            });
+        }
+
+        function addItemToCustomList(customListId, movieId) {
+            $.ajax({
+                url: "{% url 'add_to_custom_list' %}",
+                type: "POST",
+                data: {
+                    list_id: customListId,
+                    movie_id: movieId,
+                    csrfmiddlewaretoken: getCsrfToken()
+                },
+                success: function(data) {
+                    if (data.status === 'success') {
+                        $('#addToListButton').text('Remove from List');
+                        $('#addToListButton').off('click').click(() => removeItemFromCustomList(customListId, movieId));
+                    }
+                    console.log(data.message);
+                },
+                error: function(xhr, errmsg, err) {
+                    console.error("Error adding movie to custom list: " + errmsg);
+                }
+            });
+        }
+
+        function removeItemFromCustomList(customListId, movieId) {
+            $.ajax({
+                url: "{% url 'remove_from_custom_list' %}",
+                type: "POST",
+                data: {
+                    list_id: customListId,
+                    movie_id: movieId,
+                    csrfmiddlewaretoken: getCsrfToken()
+                },
+                success: function(data) {
+                    if (data.status === 'success') {
+                        $('#addToListButton').text('Add to List');
+                        $('#addToListButton').off('click').click(() => addItemToCustomList(customListId, movieId));
+                        setTimeout(() => location.reload(), 300);
+                    }
+                    console.log(data.message);
+                },
+                error: function(xhr, errmsg, err) {
+                    console.error("Error removing item from custom list: " + errmsg);
+                }
+            });
+        }
+
+        // Initial setup to ensure buttons are correctly set on page load
+        $(document).ready(function() {
+            $.ajax({
+                url: "{% url 'my-list-json' %}",
+                type: "GET",
+                success: function(data) {
+                    if (data.movies) {
+                        data.movies.forEach(movie => {
+                            const movieId = movie.uu_id;
+                            const addButton = $(`[data-movie-id='${movieId}']`).find('#addToListButton');
+                            if (addButton.length) {
+                                addButton.text('Remove from List');
+                                addButton.off('click').click(removeItemFromList);
+                            }
+                        });
+                    } else {
+                        console.error("No movies found in the response");
+                    }
+                },
+                error: function(xhr, errmsg, err) {
+                    console.error("Error fetching initial movie list: " + errmsg);
+                }
+            });
+        });
+
+        function showCreateListModal() {
+            console.log('Showing create list modal');
+            const modal = document.getElementById('createListModal');
+            modal.style.display = 'block';
+            setTimeout(() => {
+                modal.classList.add('modal-show');
+            }, 10);
+        }
+
+        function hideCreateListModal() {
+            console.log('Hiding create list modal');
+            const modal = document.getElementById('createListModal');
+            modal.classList.remove('modal-show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        function showUpdateListModal(button) {
+            console.log('Showing update list modal');
+            const listId = button.getAttribute('data-list-id');
+            const listName = button.getAttribute('data-list-name');
+            const modal = document.getElementById('updateListModal');
+            modal.style.display = 'block';
+            document.getElementById('updateListForm').action = `/update-custom-list/${listId}/`;
+            document.getElementById('updateListName').value = listName;
+            setTimeout(() => {
+                modal.classList.add('modal-show');
+            }, 10);
+        }
+
+        function hideUpdateListModal() {
+            console.log('Hiding update list modal');
+            const modal = document.getElementById('updateListModal');
+            modal.classList.remove('modal-show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        function showDeleteListModal(button) {
+            console.log('Showing delete list modal');
+            const listId = button.getAttribute('data-list-id');
+            const modal = document.getElementById('deleteListModal');
+            modal.style.display = 'block';
+            document.getElementById('deleteListForm').action = `/delete-custom-list/${listId}/`;
+            setTimeout(() => {
+                modal.classList.add('modal-show');
+            }, 10);
+        }
+
+        function hideDeleteListModal() {
+            console.log('Hiding delete list modal');
+            const modal = document.getElementById('deleteListModal');
+            modal.classList.remove('modal-show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        $.ajaxSetup({
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+    </script>
+
+    <!-- Modals for creating, updating, and deleting lists -->
+    <div class="modal" id="createListModal">
+        <div class="modal-content">
+            <div class="flex justify-between">
+                <h2 class="text-xl mb-5">Create New List</h2>
+                <button onclick="hideCreateListModal()">X</button>
+            </div>
+            <form id="createListForm" method="post" action="{% url 'create_custom_list' %}">
+                {% csrf_token %}
+                <input type="text" name="name" placeholder="List Name" required class="bg-gray-700 p-2 mb-5 rounded w-full">
+                <button type="submit" class="bg-red-600 text-white p-2 rounded">Create</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="updateListModal">
+        <div class="modal-content">
+            <div class="flex justify-between">
+                <h2 class="text-xl mb-5">Update List</h2>
+                <button onclick="hideUpdateListModal()">X</button>
+            </div>
+            <form id="updateListForm" method="post">
+                {% csrf_token %}
+                <input type="text" name="name" id="updateListName" placeholder="List Name" required class="bg-gray-700 p-2 mb-5 rounded w-full">
+                <button type="submit" class="bg-blue-600 text-white p-2 rounded">Update</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="deleteListModal">
+        <div class="modal-content">
+            <div class="flex justify-between">
+                <h2 class="text-xl mb-5">Delete List</h2>
+                <button onclick="hideDeleteListModal()">X</button>
+            </div>
+            <form id="deleteListForm" method="post">
+                {% csrf_token %}
+                <p>Are you sure you want to delete this list?</p>
+                <button type="submit" class="bg-red-600 text-white p-2 rounded">Delete</button>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>

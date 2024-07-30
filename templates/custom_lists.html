@@ -1,0 +1,60 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Custom Lists</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="{% static 'assets/style.css' %}" />
+</head>
+
+<body class="text-white" style="background-color: #141414;">
+    <header class="p-5 flex justify-between items-center">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/7/7a/Logonetflix.png" height="30" alt="Netflix Logo" width="110">
+        <nav class="flex space-x-5">
+            <span><a href="/">Home</a></span>
+            <span><a href="/my-list">My List</a></span>
+        </nav>
+    </header>
+
+    <section class="py-10 px-5">
+        <h2 class="text-xl mb-5">My Custom Lists</h2>
+        <div class="flex flex-col space-y-5">
+            {% for custom_list in custom_lists %}
+                <div>
+                    <h3 class="text-lg mb-2">{{ custom_list.name }}</h3>
+                    <div class="flex space-x-5 mb-10 overflow-x-auto">
+                        {% for movie in custom_list.movies.all %}
+                            <div class="w-40 h-64 flex-shrink-0 film-card"
+                                onclick="showMovieModal(this)"
+                                data-title="{{ movie.title }}"
+                                data-description="{{ movie.description }}"
+                                data-release-date="{{ movie.release_date|date:'Y' }}"
+                                data-genre="{{ movie.get_genre_display }}"
+                                data-length="{{ movie.length }}"
+                                data-image-card-url="{{ movie.image_card.url }}"
+                                data-image-cover-url="{{ movie.image_cover.url }}"
+                                data-video-id="{{ movie.youtube_video_id }}"
+                                data-movie-id="{{ movie.uu_id }}"
+                                style="background-image: url('{{ movie.image_card.url }}'); background-size: cover; background-position: center;">
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <button class="bg-blue-600 text-white p-2 rounded"
+                            data-list-id="{{ custom_list.id }}"
+                            data-list-name="{{ custom_list.name|escapejs }}"
+                            onclick="showUpdateListModal(this)">Update</button>
+                    <button class="bg-red-600 text-white p-2 rounded"
+                            data-list-id="{{ custom_list.id }}"
+                            onclick="showDeleteListModal(this)">Delete</button>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+</body>
+
+</html>
