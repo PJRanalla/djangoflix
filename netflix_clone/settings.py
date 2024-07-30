@@ -15,12 +15,16 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 import os
 from decouple import config, Csv
+import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # DEBUG = config('DEBUG', default=False, cast=bool)
 
-DEBUG = True
+env = environ.Env(
+    DEBUG=(bool, False)
+)
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=Csv())
 
@@ -68,7 +72,7 @@ WSGI_APPLICATION = 'netflix_clone.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': config('DATABASE_ENGINE','django.db.backends.postgresql'),
         'NAME': config('DATABASE_NAME', default='defaultdb'),
         'USER': config('DATABASE_USER', default='doadmin'),
         'PASSWORD': config('DATABASE_PASSWORD', default='password'),
