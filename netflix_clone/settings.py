@@ -64,19 +64,31 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'netflix_clone.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': config('DATABASE_ENGINE','django.db.backends.postgresql'),
-        'NAME': config('DATABASE_NAME', default='defaultdb'),
-        'USER': config('DATABASE_USER', default='doadmin'),
-        'PASSWORD': config('DATABASE_PASSWORD', default='password'),
-        'HOST': config('DATABASE_HOST', default='localhost'),
-        'PORT': config('DATABASE_PORT', default='25060'),
-    }
-}
+DATABASE_URL = config('DATABASE_URL', None)
 
-SECRET_KEY = config('SECRET_KEY', default='your-default-secret-key')
-YOUTUBE_API_KEY = config('YOUTUBE_API_KEY', default='your-default-youtube-api-key')
+if not DATABASE_URL:
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DATABASE_NAME', default='defaultdb'),
+            'USER': config('DATABASE_USER', default='doadmin'),
+            'PASSWORD': config('DATABASE_PASSWORD', default='password'),
+            'HOST': config('DATABASE_HOST', default='localhost'),
+            'PORT': config('DATABASE_PORT', default='25060'),
+            'OPTIONS': {'sslmode': 'require'}
+        }
+    }
+
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-6vmtv6yhc(g$^$4#@i(buk7v1vw(i97_d+(1lwbv0107wj6c%%')
+YOUTUBE_API_KEY = config('YOUTUBE_API_KEY', default='AIzaSyBzQA3-cgLPW0m0k0yb-e7zP7JxRsPokfo')
 
 AUTH_PASSWORD_VALIDATORS = [
     {
