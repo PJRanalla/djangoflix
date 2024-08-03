@@ -87,8 +87,8 @@ else:
         }
     }
 
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-6vmtv6yhc(g$^$4#@i(buk7v1vw(i97_d+(1lwbv0107wj6c%%')
-YOUTUBE_API_KEY = config('YOUTUBE_API_KEY', default='AIzaSyBzQA3-cgLPW0m0k0yb-e7zP7JxRsPokfo')
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-missing-secret-key')
+YOUTUBE_API_KEY = config('YOUTUBE_API_KEY', default='missing-youtube-api-key')
 
 AUTH_PASSWORD_VALIDATORS = [
     {
